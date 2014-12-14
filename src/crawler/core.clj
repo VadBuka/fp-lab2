@@ -6,6 +6,10 @@
   [level & args]
   (apply println (apply str (repeat (* (- level 1) 4) " ")) args))
 
+(defn parse-urls
+  [body]
+  (map #(% 1) (re-seq #"href=[\'\"]?((http|https)\:\/\/[^\'\" >]+)" body))) ; "
+
 (defn visit-url
   [url current-level max-level]
   (cond
@@ -15,7 +19,9 @@
           body (:body response)]
       (cond
         (= status 200)
-        (print-level current-level url "ok")
+        (let [urls (parse-urls body)]
+          (print-level current-level url (count urls) "links")
+            (doall (pmap #(visit-url % (+ current-level 1) max-level) urls)))
 
         (contains? #{301 302 307} status)
         (let [redirect-url (:location (:headers response))]
@@ -27,4 +33,5 @@
 
 (defn -main
   [url depth]
-  (visit-url url 1 (Integer/parseInt depth)))
+  (visit-url url 1 (Integer/parseInt depth))
+  (shutdown-agents))
