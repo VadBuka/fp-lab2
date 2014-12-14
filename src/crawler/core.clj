@@ -10,13 +10,17 @@
   [body]
   (map #(% 1) (re-seq #"href=[\'\"]?((http|https)\:\/\/[^\'\" >]+)" body))) ; "
 
+(defn get-response
+  [url]
+  @(http/get url {:follow-redirects false :throw-exceptions false}))
+
 (defn visit-url
   [url current-level max-level visited-urls]
   (cond
     (and (<= current-level max-level) (not (contains? @visited-urls url)))
     (do
       (swap! visited-urls #(conj % url))
-      (let [response @(http/get url {:follow-redirects false :throw-exceptions false})
+      (let [response (get-response url)
             status (:status response)
             body (:body response)]
         (cond
@@ -31,7 +35,9 @@
             (visit-url redirect-url (+ current-level 1) max-level visited-urls))
 
           :else
-          (print-level current-level url "bad"))))))
+          (do
+            (print-level current-level url "bad")
+            status))))))
 
 (defn -main
   [url depth]
